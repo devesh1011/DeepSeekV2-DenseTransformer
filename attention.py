@@ -18,6 +18,11 @@ class MultiHeadLatentAttention(nn.Module):
         self.d_q = 384
         self.d_h = config.n_embed // config.n_head
 
+        self.norm_c_kv = nn.RMSNorm(self.d_kv)
+        self.norm_dq = nn.RMSNorm(self.d_q)
+        self.scale_kv = nn.Parameter(torch.ones(1))
+        self.scale_q = nn.Parameter(torch.ones(1))
+
         # Shared projection matrices
         self.W_dkv = nn.Linear(config.n_embed, self.d_kv, bias=False)
         self.W_dq = nn.Linear(config.n_embed, self.d_q, bias=False)
@@ -67,8 +72,10 @@ class MultiHeadLatentAttention(nn.Module):
 
     def forward(self, x):
         batch_size, seq_len, _ = x.size()
-        c_kv = self.W_dkv(x)  # [batch_size, seq_len, 128]
-        x_dq = self.W_dq(x)  # [batch_size, seq_len, 128]
+        c_kv = (
+            self.norm_c_kv(self.W_dkv(x)) * self.scale_kv
+        )  # [batch_size, seq_len, 128]
+        x_dq = self.norm_dq(self.W_dq(x)) * self.scale_q  # [batch_size, seq_len, 128]
         k_rope = self.W_kr(x)  # [batch_size, seq_len, 64]
         k_rope = self.apply_rope(k_rope, seq_len)
 
