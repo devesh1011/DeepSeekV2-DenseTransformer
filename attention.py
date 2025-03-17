@@ -11,38 +11,39 @@ class MultiHeadLatentAttention(nn.Module):
 
     def __init__(self, config):
         super().__init__()
+        self.config = config
         self.d_kv = 128
         self.d_c = 64
         self.d_r = 64
+        self.d_q = 384
         self.d_h = config.n_embed // config.n_head
 
         # Shared projection matrices
         self.W_dkv = nn.Linear(config.n_embed, self.d_kv, bias=False)
-        self.W_dq = nn.Linear(config.n_embed, self.d_kv, bias=False)
+        self.W_dq = nn.Linear(config.n_embed, self.d_q, bias=False)
         self.W_kr = nn.Linear(config.n_embed, self.d_r, bias=False)
 
         # Per-head projection matrices
         self.W_qc = nn.ModuleList(
-            [nn.Linear(self.d_kv, self.d_c, bias=False) for _ in range(self.n_head)]
+            [nn.Linear(self.d_q, self.d_c, bias=False) for _ in range(config.n_head)]
         )
         self.W_qr = nn.ModuleList(
-            [nn.Linear(self.d_kv, self.d_r, bias=False) for _ in range(self.n_head)]
+            [nn.Linear(self.d_q, self.d_r, bias=False) for _ in range(config.n_head)]
         )
         self.W_uk = nn.ModuleList(
-            [nn.Linear(self.d_kv, self.d_c, bias=False) for _ in range(self.n_head)]
+            [nn.Linear(self.d_kv, self.d_c, bias=False) for _ in range(config.n_head)]
         )
         self.W_uv = nn.ModuleList(
-            [nn.Linear(self.d_kv, self.d_h, bias=False) for _ in range(self.n_head)]
+            [nn.Linear(self.d_kv, self.d_h, bias=False) for _ in range(config.n_head)]
         )
         # Output projection
         self.W_o = nn.Linear(config.n_head * self.d_h, config.n_embed, bias=False)
 
+        # Precompute RoPE (Rotary Position Embedding) cosines and sines
         freqs = torch.exp(
             torch.arange(0, self.d_r // 2, dtype=torch.float)
             * (-math.log(10000) / (self.d_r // 2))
         )
-
-        # Precompute RoPE (Rotary Position Embedding) cosines and sines
         positions = torch.arange(0, config.block_size)
         angles = positions[:, None] * freqs[None, :]
         self.register_buffer(
@@ -72,7 +73,7 @@ class MultiHeadLatentAttention(nn.Module):
         k_rope = self.apply_rope(k_rope, seq_len)
 
         outputs = []
-        for h in range(self.n_head):
+        for h in range(self.config.n_head):
             # Query projections
             q_nope = self.W_qc[h](x_dq)  # [batch_size, seq_len, 64]
             q_rope = self.W_qr[h](x_dq)  # [batch_size, seq_len, 64]
