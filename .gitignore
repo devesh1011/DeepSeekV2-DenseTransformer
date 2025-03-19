@@ -2,3 +2,6 @@
 MultiHeadedLatentAttn.pdf
 mahabharata.txt
 __pycache__
+data_prepare.py
+.gitignore
+test.py
