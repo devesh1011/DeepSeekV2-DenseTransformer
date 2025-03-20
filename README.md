@@ -31,4 +31,5 @@ The MLA-Based Transformer is designed for a variety of natural language processi
 ## References
 - [Attention Is All You Need](https://arxiv.org/abs/1706.03762): The foundational paper introducing the transformer architecture.
 - [GPT-2 Byte Pair Encoding](https://github.com/openai/tiktoken): The tokenization method used in this project.
-- [Deepseek-V2 Paper](https://arxiv.org/abs/1706.03762): A technique for incorporating sequence order into transformer models.
+- [DeepSeek-V2: A Strong, Economical, and Efficient Mixture-of-Experts Language Model](https://arxiv.org/abs/2405.04434): DeepSeek-V2, a strong Mixture-of-Experts (MoE) language model characterized by economical training and efficient inference
+- [Towards Economical Inference: Enabling DeepSeek's Multi-Head Latent Attention in Any Transformer-based LLMs] (https://arxiv.org/abs/2502.14837): Multi-head Latent Attention (MLA) is an innovative architecture proposed by DeepSeek, designed to ensure efficient and economical inference by significantly compressing the Key-Value (KV) cache into a latent vector
