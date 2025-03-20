@@ -3,6 +3,10 @@ from gpt import GPT
 from model_config import Config
 from dataloader import Dataloader
 import time
+import tiktoken
+import torch.nn.functional as F
+
+enc = tiktoken.get_encoding("gpt2")
 
 
 def get_lr(
@@ -78,6 +82,32 @@ for step in range(max_steps):
                 val_loss_accum += loss.detach()
         print(f"Validation loss: {val_loss_accum.item():.4f}")
 
+    if step > 0 and step % 100 == 0:
+        model.eval()
+        num_return_sequences = 4
+        max_length = 10
+        tokens = enc.encode("We are accounted poor citizens")
+        tokens = torch.tensor(tokens, dtype=torch.float16)
+        xgen = tokens.to(device.type)
+        sample_rng = torch.Generator(device=device.type)
+        sample_rng.manual_seed(42)
+        while xgen.size(1) < max_length:
+            with torch.no_grad():
+                logits, loss = model(xgen)
+
+                logits = logits[:, -1, :]
+                probs = F.softmax(logits, dim=-1)
+
+                topk_probs, topk_indices = torch.topk(probs, 30, dim=-1)
+
+                ix = torch.multinomial(topk_probs, 1, generator=sample_rng)
+                xcol = torch.gather(topk_indices, -1, ix)
+                xgen = torch.cat((xgen, xcol), dim=-1)
+        for i in range(num_return_sequences):
+            tokens - xgen[i, :max_length].tolist()
+            decoded = enc.decode(tokens)
+            print(f"sample {i}: {decoded}")
+
     # model training
     model.train()
     loss_accum = 0.0
@@ -92,14 +122,14 @@ for step in range(max_steps):
         loss.backward()
     # gradient clipping -> as per deepseek-v2 paper
     norm = torch.nn.utils.clip_grad_norm_(model.parameters(), 1.0)
-    lr = get_lr(step) # learning rate scheduler
+    lr = get_lr(step)  # learning rate scheduler
     for param_group in optimizer.param_groups:
         param_group["lr"] = lr
 
     optimizer.step()
     torch.cuda.synchronize()
     t1 = time.time()
-    dt = t1 - t0 # time difference in seconds
+    dt = t1 - t0  # time difference in seconds
     tokens_processed = train_loader.B * train_loader.T * grad_accum_steps
     tokens_per_sec = tokens_processed / dt
     print(
